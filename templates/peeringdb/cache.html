@@ -1,0 +1,85 @@
+{% extends '_base.html' %}
+{% load helpers %}
+{% block actions %}
+{% if request.user.is_staff %}
+<button type="button" class="btn btn-primary" id="update_cache">
+  <i class="fas fa-sync"></i> Update
+</button>
+<button type="button" class="btn btn-danger" id="clear_cache">
+  <i class="fas fa-broom"></i> Clear
+</button>
+{% endif %}
+{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active" aria-current="page">{% block title %}PeeringDB Local Cache{% if last_sync_time %} ({{ last_sync_time }}){% endif %}{% endblock %}</li>{% endblock %}
+{% block content %}
+<div class="alert alert-dismissible" role="alert" id="id_cache_operation">
+  <button type="button" class="close" aria-label="Close"><span>&times;</span></button>
+  <span id="id_cache_operation_text"></span>
+</div>
+{% for c in counts %}
+<div class="row text-center">
+  {% for object, count in c.items %}
+  <div class="col">
+    <h2>{{ count }}</h2>
+    <p>{{ object }}</p>
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+{% endblock %}
+{% block javascript %}
+<script>
+  function resetSyncButton(button) {
+    button.removeAttr('disabled');
+    button.removeClass('btn-warning', 'btn-danger', 'btn-success');
+    button.addClass('btn-primary').html('<i class="fas fa-sync"></i> Update');
+  }
+  function resetClearButton(button) {
+    button.removeAttr('disabled');
+    button.removeClass('btn-warning', 'btn-primary', 'btn-success');
+    button.addClass('btn-danger').html('<i class="fas fa-broom"></i> Clear');
+  }
+
+  $('.alert').hide();
+  $('.alert').on('click', '.close', function() {
+    $(this).closest('.alert').slideUp();
+  });
+
+  function showSuccessAlert(text) {
+    $('#id_cache_operation').addClass('alert-success');
+    $('#id_cache_operation_text').text(text);
+    $('#id_cache_operation').slideDown();
+  }
+
+  $('#update_cache').click(function () {
+    $.ajax({
+      method: 'post',
+      data: { csrfmiddlewaretoken: '{{ csrf_token }}' },
+      url: "{% url 'peeringdb-api:cache-update-local' %}",
+      beforeSend: function () {
+        PeeringManager.setWorkingButton($('#update_cache'));
+      },
+      complete: function () {
+        resetSyncButton($('#update_cache'));
+      },
+    }).done(function () {
+      showSuccessAlert('Cache update requested.');
+    });
+  });
+  $('#clear_cache').click(function () {
+    $.ajax({
+      method: 'post',
+      data: { csrfmiddlewaretoken: '{{ csrf_token }}' },
+      url: "{% url 'peeringdb-api:cache-clear-local' %}",
+      beforeSend: function () {
+        PeeringManager.setWorkingButton($('#clear_cache'));
+      },
+      complete: function () {
+        resetClearButton($('#clear_cache'));
+      },
+    }).done(function () {
+      showSuccessAlert('Cache successfully cleared.');
+    });
+  });
+</script>
+{% endblock %}

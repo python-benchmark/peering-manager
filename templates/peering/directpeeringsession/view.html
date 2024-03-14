@@ -1,0 +1,206 @@
+{% extends 'peering/directpeeringsession/_base.html' %}
+{% load helpers %}
+{% block subcontent %}
+<div class="row">
+  <div class="col-md-6">
+    <div class="card mb-2">
+      <div class="card-header"><strong>BGP Details</strong></div>
+      <table class="card-body table table-hover attr-table mb-0">
+        {% if instance.service_reference %}
+        <tr>
+          <td>Service ID</td>
+          <td>{{ instance.service_reference }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td>Relationship</td>
+          <td>{{ instance.relationship.get_html }}</td>
+        </tr>
+        {% if instance.bgp_group %}
+        <tr>
+          <td>BGP Group</td>
+          <td>{{ instance.bgp_group|as_link }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td>Local AS</td>
+          <td>{{ instance.local_autonomous_system|as_link }}</td>
+        </tr>
+        {% if instance.local_ip_address %}
+        <tr>
+          <td>Local IP Address</td>
+          <td>{{ instance.local_ip_address }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td>AS</td>
+          <td>
+            {{ instance.autonomous_system|as_link }}
+            {% if instance.autonomous_system.comments %}
+            <span class="float-right badge badge-info popover-hover" data-toggle="popover" data-html="true" data-content="{{ instance.autonomous_system.comments | markdown:True }}"><i class="fas fa-comment"></i></span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td>IP Address</td>
+          <td>{{ instance.ip_address }}</td>
+        </tr>
+        <tr>
+          <td>Status</td>
+          <td>{{ instance|status_as_badge }}</td>
+        </tr>
+        <tr>
+          <td>Passive</td>
+          <td>{{ instance.passive|boolean_as_icon }}</td>
+        </tr>
+        {% if request.user.is_authenticated and instance.password %}
+        <tr>
+          <td>Password</td>
+          <td>
+            <div class="input-group">
+              <input type="password" class="form-control" id="id_password" value="{{ instance.password }}" disabled>
+              <div class="input-group-append">
+                <button type="button" class="btn btn-secondary" id="id_password_reveal"><i class="fas fa-eye"></i> Show</button>
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% endif %}
+        {% if instance.multihop_ttl > 1 %}
+        <tr>
+          <td>Multihop TTL</td>
+          <td>{{ instance.multihop_ttl }}</td>
+        </tr>
+        {% endif %}
+        {% if instance.router %}
+        <tr>
+          <td>Router</td>
+          <td>{{ instance.router|as_link }}</td>
+        </tr>
+        {% endif %}
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-header"><strong>Comments</strong></div>
+      <div class="card-body">
+        {% if instance.comments %}
+        {{ instance.comments|markdown }}
+        {% else %}
+        <span class="text-muted">None</span>
+        {% endif %}
+      </div>
+    </div>
+    {% include 'includes/tags_card.html' with tags=instance.tags.all url='peering:directpeeringsession_list' %}
+  </div>
+  <div class="col-md-6">
+    {% if instance.last_established_state != None %}
+    <div class="card mb-2">
+      <div class="card-header"><strong>BGP State</strong></div>
+      <table class="card-body table table-hover attr-table mb-0">
+        <tr>
+          <td>State</td>
+          <td>{{ instance.get_bgp_state_html }}</td>
+        </tr>
+        <tr>
+          <td>Last Established</td>
+          <td>{{ instance.last_established_state }}</td>
+        </tr>
+        <tr>
+          <td>Received Prefix Count</td>
+          <td><span class="badge badge-pill badge-primary">{{ instance.received_prefix_count }}</span></td>
+        </tr>
+        <tr>
+          <td>Accepted Prefix Count</td>
+          <td><span class="badge badge-pill badge-primary">{{ instance.accepted_prefix_count }}</span></td>
+        </tr>
+        <tr>
+          <td>Advertised Prefix Count</td>
+          <td><span class="badge badge-pill badge-primary">{{ instance.advertised_prefix_count }}</span></td>
+        </tr>
+      </table>
+    </div>
+    {% endif %}
+    <div class="card mb-2">
+      <div class="card-header"><strong>Import Routing Policies</strong></div>
+      {% if instance.import_routing_policies.all.count > 0 %}
+      <ul class="list-group list-group-flush">
+      {% for routing_policy in instance.import_routing_policies.all %}
+        <li class="list-group-item">
+          {{ routing_policy|as_link }}
+        </li>
+      {% endfor %}
+      </ul>
+      {% else %}
+      <div class="card-body">
+        <span class="text-muted">None</span>
+      </div>
+      {% endif %}
+    </div>
+    <div class="card mb-2">
+      <div class="card-header"><strong>Export Routing Policies</strong></div>
+      {% if instance.export_routing_policies.all.count > 0 %}
+      <ul class="list-group list-group-flush">
+      {% for routing_policy in instance.export_routing_policies.all %}
+        <li class="list-group-item">
+          {{ routing_policy|as_link }}</span>
+        </li>
+      {% endfor %}
+      </ul>
+      {% else %}
+      <div class="card-body">
+        <span class="text-muted">None</span>
+      </div>
+      {% endif %}
+    </div>
+    <div class="card mb-2">
+      <div class="card-header">
+        <strong>BGP Communities</strong>
+      </div>
+      {% if instance.communities.all.count > 0 %}
+      <ul class="list-group list-group-flush">
+      {% for community in instance.communities.all %}
+        <li class="list-group-item">
+          {{ community|as_link }}{% if community.type %} <span class="float-right">{{ community.get_type_html }}{% endif %}</span>
+        </li>
+      {% endfor %}
+      </ul>
+      {% else %}
+      <div class="card-body">
+        <span class="text-muted">None</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block javascript %}
+<script>
+  $("#id_session_disable").click(function() {
+    $.ajax({
+      method: "patch",
+      url: "{% url 'peering-api:directpeeringsession-detail' pk=instance.pk %}",
+      headers: { "X-CSRFTOKEN": "{{ csrf_token }}" },
+      data: {
+        "id": {{ instance.pk }},
+        "status": "disabled",
+        "bgp_state": "idle",
+        "received_prefix_count": 0,
+        "accepted_prefix_count": 0,
+        "advertised_prefix_count": 0
+      }
+    }).done(function() {
+      location.reload();
+    });
+  });
+  $("#id_session_enable").click(function() {
+    $.ajax({
+      method: "patch",
+      url: "{% url 'peering-api:directpeeringsession-detail' pk=instance.pk %}",
+      headers: { "X-CSRFTOKEN": "{{ csrf_token }}" },
+      data: { "id": {{ instance.pk }}, "status": "enabled" }
+    }).done(function() {
+      location.reload();
+    });
+  });
+</script>
+{% endblock %}

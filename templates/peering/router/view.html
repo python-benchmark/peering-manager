@@ -1,0 +1,217 @@
+{% extends 'peering/router/_base.html' %}
+{% load helpers %}
+{% block subcontent %}
+{% include 'includes/alerts_success_danger.html' %}
+<div class="row">
+  <div class="col-md-6">
+    <div class="card mb-2">
+      <div class="card-header">
+        <strong>Router Details</strong>
+        {% if instance.is_usable_for_task %}
+        <div class="float-right">
+          <button type="button" class="btn btn-xs btn-primary" id="id_router_ping" title="Check if the router is usable.">
+            <i class="fa fa-plug"></i> Ping
+          </button>
+          {% if perms.peering.change_directpeeringsession and perms.peering.change_internetexchangepeeringsession and instance.poll_bgp_sessions_state %}
+          <button type="button" class="btn btn-xs btn-success" id="id_poll_sessions_state" title="Poll BGP sessions state on this router.">
+            <i class="fas fa-sync"></i> Poll Sessions
+          </button>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+      <table class="card-body table table-hover attr-table mb-0">
+        <tr>
+          <td>Name</td>
+          <td>{{ instance.name }}</td>
+        </tr>
+        <tr>
+          <td>Hostname</td>
+          <td>{{ instance.hostname }}</td>
+        </tr>
+        <tr>
+          <td>Platform</td>
+          <td>{{ instance.platform|as_link|render_none }}</td>
+        </tr>
+        <tr>
+          <td>Status</td>
+          <td>{{ instance|status_as_badge }}</td>
+        </tr>
+        <tr>
+          <td>Local AS</td>
+          <td>{{ instance.local_autonomous_system|as_link }}</td>
+        </tr>
+        <tr>
+          <td>Configuration</td>
+          <td>{{ instance.configuration_template|render_none }}</td>
+        </tr>
+        <tr>
+          <td>Encrypt Passwords</td>
+          <td>{{ instance.encrypt_passwords|boolean_as_icon }}</td>
+        </tr>
+        <tr>
+          <td>Poll BGP Sessions</td>
+          <td>{{ instance.poll_bgp_sessions_state|boolean_as_icon }}</td>
+        </tr>
+        {% if instance.poll_bgp_sessions_state and instance.poll_bgp_sessions_last_updated %}
+        <tr>
+          <td>Last Polled</td>
+          <td>{{ instance.poll_bgp_sessions_last_updated | date_span }}</td>
+        </tr>
+        {% endif %}
+        {% if settings.NETBOX_URL and instance.is_netbox_device %}
+        <tr>
+          <td>NetBox</td>
+          <td><a href="{{ settings.NETBOX_URL }}/dcim/devices/{{ instance.netbox_device_id }}">Device #{{ instance.netbox_device_id }}</a></td>
+        </tr>
+        {% if instance.use_netbox %}
+        <tr>
+          <td>Proxy NAPALM via NetBox</td>
+          <td>{{ instance.use_netbox|boolean_as_icon }}</td>
+        </tr>
+        {% endif %}
+        {% endif %}
+        <tr>
+          <td>Utilization</td>
+          <td>Has {{ connections|length }} connection{{ connections|length|pluralize }}</td>
+        </tr>
+      </table>
+    </div>
+    {% if request.user.is_authenticated %}
+    {% if instance.napalm_username or instance.napalm_password or instance.napalm_timeout or instance.napalm_args %}
+    <div class="card">
+      <div class="card-header"><strong>NAPALM</strong></div>
+      <table class="card-body table table-hover attr-table mb-0">
+        {% if instance.napalm_username %}
+        <tr>
+          <td>Username</td>
+          <td>{{ instance.napalm_username }}</td>
+        </tr>
+        {% endif %}
+        {% if instance.napalm_password %}
+        <tr>
+          <td>Password</td>
+          <td>
+            <div class="input-group">
+              <input type="password" class="form-control" id="id_password" value="{{ instance.napalm_password }}" disabled>
+              <div class="input-group-append">
+                <button type="button" class="btn btn-secondary" id="id_password_reveal"><i class="fas fa-eye"></i> Show</button>
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% endif %}
+        {% if instance.napalm_timeout %}
+        <tr>
+          <td>Timeout</td>
+          <td>{{ instance.napalm_timeout }} seconds</td>
+        </tr>
+        {% endif %}
+        {% if instance.napalm_args %}
+        <tr>
+          <td>Optional Arguments</td>
+          <td><pre>{{ instance.napalm_args }}</pre></td>
+        </tr>
+        {% endif %}
+      </table>
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header"><strong>Comments</strong></div>
+      <div class="card-body">
+        {% if instance.comments %}
+        {{ instance.comments|markdown }}
+        {% else %}
+        <span class="text-muted">None</span>
+        {% endif %}
+      </div>
+    </div>
+    {% include 'includes/tags_card.html' with tags=instance.tags.all url='peering:router_list' %}
+  </div>
+</div>
+{% endblock %}
+{% block javascript %}
+<script>
+  $('.alert').hide();
+  $('.alert').on('click', '.close', function () {
+    $(this).closest('.alert').slideUp();
+  });
+
+  {% if instance.is_usable_for_task %}
+  function pingFailHandler() {
+    PeeringManager.resetPingButton($('#id_router_ping'));
+  }
+  function pingDoneHandler(r) {
+    switch (r['status']['value']) {
+      case 'pending':
+      case 'running':
+        setTimeout(function () {
+          PeeringManager.pollJob(r, pingDoneHandler, pingFailHandler);
+        }, 2000);
+        break;
+      case 'completed':
+        $('#id_message_success').html('Successfully connected to the router.');
+        $('#id_alert_success').slideDown();
+        PeeringManager.resetPingButton($('#id_router_ping'));
+        break;
+      case 'errored':
+      case 'failed':
+      default:
+        $('#id_message_danger').html('Unable to connect to the router.');
+        $('#id_alert_danger').slideDown();
+        PeeringManager.resetPingButton($('#id_router_ping'));
+        break;
+    }
+  }
+  $("#id_router_ping").click(function () {
+    $.ajax({
+      method: "get",
+      url: "{% url 'peering-api:router-test-napalm-connection' pk=instance.pk %}",
+    }).done(function(r) {
+      PeeringManager.setWorkingButton($('#id_router_ping'));
+      PeeringManager.pollJob(r, pingDoneHandler, pingFailHandler);
+    });
+  });
+  {% endif %}
+  {% if instance.poll_bgp_sessions_state and instance.is_usable_for_task %}
+  function pollSessionsFailHandler() {
+    PeeringManager.resetPollSessionsButton($('#id_poll_sessions_state'));
+    $('#id_message_danger').html('Failure polling BGP sessions state.');
+    $('#id_alert_danger').slideDown();
+  }
+  function pollSessionsDoneHandler(r) {
+    switch (r['status']['value']) {
+      case 'pending':
+      case 'running':
+        setTimeout(function () {
+          PeeringManager.pollJob(r, pollSessionsDoneHandler, pollSessionsFailHandler);
+        }, 2000);
+        break;
+      case 'completed':
+        PeeringManager.resetPollSessionsButton($('#id_poll_sessions_state'));
+        $('#id_message_success').html('Successfully polled BGP sessions state.');
+        $('#id_alert_success').slideDown();
+        break;
+      case 'errored':
+      case 'failed':
+      default:
+        pollSessionsFailHandler();
+        break;
+    }
+  }
+  $('#id_poll_sessions_state').click(function () {
+    $.ajax({
+      method: 'post',
+      headers: { 'X-CSRFTOKEN': '{{ csrf_token }}' },
+      url: "{% url 'peering-api:router-poll-bgp-sessions' pk=instance.pk %}",
+    }).done(function (r) {
+      PeeringManager.setWorkingButton($('#id_poll_sessions_state'));
+      PeeringManager.pollJob(r, pollSessionsDoneHandler, pollSessionsFailHandler);
+    }).fail(pollSessionsFailHandler);
+  });
+  {% endif %}
+</script>
+{% endblock %}

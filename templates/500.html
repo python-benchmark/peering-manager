@@ -1,0 +1,37 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Server Error</title>
+  <script defer src="{% static 'fontawesome-6.4.2/js/all.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'bootstrap-4.6.2-dist/css/bootstrap.min.css' %}">
+</head>
+<body>
+  <div class="container-fluid">
+    <div class="row justify-content-center">
+      <div class="col-md-4">
+        <div class="card border border-danger" style="margin-top: 200px">
+          <div class="card-header bg-danger text-white">
+            <i class="fas fa-exclamation-triangle"></i> <strong>Server Error</strong>
+          </div>
+          <div class="card-body">
+            {% block message %}
+            <p class="card-text">There was a problem with your request. Please contact an administrator.</p>
+            {% endblock %}
+            <hr />
+            <p class="card-text">The complete exception is provided below:</p>
+<pre><strong>{{ exception }}</strong><br />
+{{ error }}
+
+Python version: {{ python_version }}
+Peering Manager version: {{ peering_manager_version }}</pre>
+            <div class="text-right">
+              <a href="{% url 'home' %}" class="btn btn-primary">Home Page</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

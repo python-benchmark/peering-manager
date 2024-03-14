@@ -1,0 +1,56 @@
+{% extends 'peering/routingpolicy/_base.html' %}
+{% load helpers %}
+{% block subcontent %}
+<div class="row">
+  <div class="col-md-6">
+    <div class="card mb-2">
+      <div class="card-header"><strong>Details</strong></div>
+      <table class="card-body table table-hover attr-table mb-0">
+        <tr>
+          <td>Name</td>
+          <td>{{ instance.name }}</td>
+        </tr>
+        <tr>
+          <td>Slug</td>
+          <td>{{ instance.slug }}</td>
+        </tr>
+        <tr>
+          <td>Description</td>
+          <td>{{ instance.description|render_none }}</td>
+        </tr>
+        <tr>
+          <td>Type</td>
+          <td>{{ instance.get_type_display }}</td>
+        </tr>
+        <tr>
+          <td>Weight</td>
+          <td>{{ instance.weight }}</td>
+        </tr>
+        <tr>
+          <td>Address Family</td>
+          <td>{{ instance.get_address_family_display }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header"><strong>BGP Communities</strong></div>
+      {% if instance.communities.all.count > 0 %}
+      <ul class="list-group list-group-flush">
+      {% for community in instance.communities.all %}
+        <li class="list-group-item">
+          {{ community|as_link }}{% if community.type %} <span class="float-right">{{ community.get_type_html }}{% endif %}</span>
+        </li>
+      {% endfor %}
+      </ul>
+      {% else %}
+      <div class="card-body">
+        <span class="text-muted">None</span>
+      </div>
+      {% endif %}
+    </div>
+    {% include 'includes/tags_card.html' with tags=instance.tags.all url='peering:routingpolicy_list' %}
+  </div>
+</div>
+{% endblock %}
