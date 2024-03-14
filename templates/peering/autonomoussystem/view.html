@@ -1,0 +1,188 @@
+{% extends 'peering/autonomoussystem/_base.html' %}
+{% load helpers %}
+{% block subcontent %}
+<div class="row">
+  <div class="col-md-6">
+    <div class="card mb-2">
+      <div class="card-header">
+        <strong>AS Details</strong>
+        <div class="float-right">
+          {% if instance.is_private %}
+          <span class="badge badge-warning">Private ASN</span>
+          {% else %}
+          <a class="btn btn-xs btn-primary" href="{{ settings.PEERINGDB_ASN }}{{ instance.asn }}" target="_blank">
+            <i class="fas fa-external-link-alt"></i> PeeringDB
+          </a>
+          {% if perms.peering.change_autonomoussystem and peeringdb_last_synchronisation %}
+          <button class="btn btn-xs btn-success" id="synchronise-with-peeringdb">
+            <i class="fas fa-sync"></i> Synchronise
+          </button>
+          {% endif %}
+          {% endif %}
+        </div>
+      </div>
+      <table class="card-body table table-hover attr-table mb-0">
+        <tr>
+          <td>ASN</td>
+          <td>{{ instance.asn }}</td>
+        </tr>
+        <tr>
+          <td>Name</td>
+          <td>{{ instance.name }}</td>
+        </tr>
+        <tr{% if not instance.is_private and instance.irr_as_set_peeringdb_sync %} data-toggle="tooltip" data-placement="right" title="From PeeringDB"{% endif %}>
+          <td>IRR AS-SET</td>
+          <td id="id_irr_as_set">{{ instance.irr_as_set|render_none }}</td>
+        </tr>
+        <tr{% if not instance.is_private and instance.ipv6_max_prefixes_peeringdb_sync %} data-toggle="tooltip" data-placement="right" title="From PeeringDB"{% endif %}>
+          <td>IPv6 Max Prefixes</td>
+          <td id="id_ipv6_max_prefixes">{{ instance.ipv6_max_prefixes|render_none }}</td>
+        </tr>
+        <tr{% if not instance.is_private and instance.ipv4_max_prefixes_peeringdb_sync %} data-toggle="tooltip" data-placement="right" title="From PeeringDB"{% endif %}>
+          <td>IPv4 Max Prefixes</td>
+          <td id="id_ipv4_max_prefixes">{{ instance.ipv4_max_prefixes|render_none }}</td>
+        </tr>
+        {% if not instance.is_private and instance.general_policy %}
+        <tr data-toggle="tooltip" data-placement="right" title="From PeeringDB">
+          <td>General Policy</td>
+          <td id="peering_policy">{{ instance.general_policy }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td>Affiliated</td>
+          <td>{{ instance.affiliated|boolean_as_icon }}</td>
+        </tr>
+      </table>
+    </div>
+    {% include 'includes/contacts.html' %}
+    {% if shared_internet_exchanges %}
+    <div class="card">
+      <div class="card-header"><strong>Shared Internet Exchanges</strong></div>
+      <ul class="list-group list-group-flush">
+        {% for ix, missing_sessions in shared_internet_exchanges.items %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          {{ ix|as_link }}
+          {% if missing_sessions %}
+          <a href="{% url 'peering:internetexchange_peers' pk=ix.pk %}?asn={{ instance.asn }}" class="text-warning" data-toggle="tooltip" title="Missing Peering Sessions"><i class="fas fa-exclamation-circle"></i></a>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+  <div class="col-md-6">
+    <div class="card mb-2">
+      <div class="card-header"><strong>Import Routing Policies</strong></div>
+      {% if instance.import_routing_policies.all.count > 0 %}
+      <ul class="list-group list-group-flush">
+      {% for routing_policy in instance.import_routing_policies.all %}
+        <li class="list-group-item">
+          {{ routing_policy|as_link }}
+        </li>
+      {% endfor %}
+      </ul>
+      {% else %}
+      <div class="card-body">
+        <span class="text-muted">None</span>
+      </div>
+      {% endif %}
+    </div>
+    <div class="card mb-2">
+      <div class="card-header"><strong>Export Routing Policies</strong></div>
+      {% if instance.export_routing_policies.all.count > 0 %}
+      <ul class="list-group list-group-flush">
+      {% for routing_policy in instance.export_routing_policies.all %}
+        <li class="list-group-item">
+          {{ routing_policy|as_link }}</span>
+        </li>
+      {% endfor %}
+      </ul>
+      {% else %}
+      <div class="card-body">
+        <span class="text-muted">None</span>
+      </div>
+      {% endif %}
+    </div>
+    <div class="card mb-2">
+      <div class="card-header"><strong>BGP Communities</strong></div>
+      {% if instance.communities.all.count > 0 %}
+      <ul class="list-group list-group-flush">
+      {% for community in instance.communities.all %}
+        <li class="list-group-item">
+          {{ community|as_link }}{% if community.type %} <span class="float-right">{{ community.get_type_html }}{% endif %}</span>
+        </li>
+      {% endfor %}
+      </ul>
+      {% else %}
+      <div class="card-body">
+        <span class="text-muted">None</span>
+      </div>
+      {% endif %}
+    </div>
+    <div class="card">
+      <div class="card-header"><strong>Comments</strong></div>
+      <div class="card-body">
+        {% if instance.comments %}
+        {{ instance.comments|markdown }}
+        {% else %}
+        <span class="text-muted">None</span>
+        {% endif %}
+      </div>
+    </div>
+    {% include 'includes/tags_card.html' with tags=instance.tags.all url='peering:autonomoussystem_list' %}
+  </div>
+</div>
+{% endblock %}
+{% block javascript %}
+<script>
+  // Init tooltip if there are any
+  $(function() {
+    $('[data-toggle="tooltip"]').tooltip();
+  });
+  {% if not instance.is_private %}
+  // Bind function to button click
+  $('#synchronise-with-peeringdb').click(function() {
+    $.ajax({
+      method: 'post',
+      data: { csrfmiddlewaretoken: '{{ csrf_token }}' },
+      url: "{% url 'peering-api:autonomoussystem-sync-with-peeringdb' pk=instance.pk %}",
+      beforeSend: function() {
+        PeeringManager.setWorkingButton($('#synchronise-with-peeringdb'));
+      },
+      complete: function() {
+        PeeringManager.resetSyncPeeringDBButton($('#synchronise-with-peeringdb'));
+      }
+    }).done(function() {
+      $.ajax({
+        method: 'get',
+        url: "{% url 'peering-api:autonomoussystem-detail' pk=instance.pk %}",
+      }).done(function(response) {
+        var changedFields = [];
+        if (response['irr_as_set_peeringdb_sync']) {
+          $('#id_irr_as_set').text(response['irr_as_set']);
+          changedFields.push($('#id_irr_as_set'));
+        }
+        if (response['ipv6_max_prefixes_peeringdb_sync']) {
+          $('#id_ipv6_max_prefixes').text(response['ipv6_max_prefixes']);
+          changedFields.push($('#id_ipv6_max_prefixes'));
+        }
+        if (response['ipv4_max_prefixes_peeringdb_sync']) {
+          $('#id_ipv4_max_prefixes').text(response['ipv4_max_prefixes']);
+          changedFields.push($('#id_ipv4_max_prefixes'));
+        }
+
+        changedFields.forEach(function(value) {
+          value.parent().toggleClass('alert-success');
+        });
+        setTimeout(function() {
+          changedFields.forEach(function(value) {
+            value.parent().toggleClass('alert-success');
+          });
+        }, 2000);
+      });
+    });
+  });
+  {% endif %}
+</script>
+{% endblock %}

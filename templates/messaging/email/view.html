@@ -1,0 +1,62 @@
+{% extends 'messaging/email/_base.html' %}
+{% load helpers %}
+{% block subcontent %}
+<div class="row">
+  <div class="col-md-6">
+    <div class="card mb-2">
+      <div class="card-header"><strong>Details</strong></div>
+      <table class="card-body table table-hover attr-table mb-0">
+        <tr>
+          <td>Name</td>
+          <td>{{ instance.name }}</td>
+        </tr>
+        <tr>
+          <td>Last update</td>
+          <td>{{ instance.updated | date_span }}</td>
+        </tr>
+      </table>
+    </div>
+    <div class="card mb-2">
+      <div class="card-header">
+        <strong>Jinja2</strong>
+        <a href="https://peering-manager.readthedocs.io/en/{{ settings.VERSION | doc_version }}/templating/" target="_blank"><i class="fa fa-info-circle"></i></a>
+      </div>
+      <table class="card-body table table-hover attr-table mb-0">
+        <tr>
+          <td>Trim</td>
+          <td>{{ instance.jinja2_trim|boolean_as_icon }}</td>
+        </tr>
+        <tr>
+          <td>Lstrip</td>
+          <td>{{ instance.jinja2_lstrip|boolean_as_icon }}</td>
+        </tr>
+      </table>
+    </div>
+    <div class="card mb-2">
+      <div class="card-header"><strong>Subject Template</strong></div>
+      <pre class="pre-scrollable">{{ instance.subject }}</pre>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header"><strong>Comments</strong></div>
+      <div class="card-body">
+        {% if instance.comments %}
+        {{ instance.comments|markdown }}
+        {% else %}
+        <span class="text-muted">None</span>
+        {% endif %}
+      </div>
+    </div>
+    {% include 'includes/tags_card.html' with tags=instance.tags.all url='messaging:email_list' %}
+  </div>
+</div>
+<div class="row">
+  <div class="col">
+    <div class="card mt-2">
+      <div class="card-header"><strong>Body Template</strong></div>
+      <pre class="pre-scrollable">{{ instance.template }}</pre>
+    </div>
+  </div>
+</div>
+{% endblock %}

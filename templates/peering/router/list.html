@@ -1,0 +1,72 @@
+{% extends '_base.html' %}
+{% load render_table from django_tables2 %}
+{% block actions %}
+{% if perms.peering.add_router %}
+<a href="{% url 'peering:router_add' %}" class="btn btn-primary">
+  <i class="fas fa-plus"></i> Add
+</a>
+{% endif %}
+{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">{% block title %}Routers{% endblock %}</li>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-9">
+    {% include 'peering/router/inc/routers_table.html' with table_modal='RouterTable_config' bulk_edit_url='peering:router_bulk_edit' bulk_delete_url='peering:router_bulk_delete' %}
+  </div>
+  <div class="col-md-3">
+    {% include 'utils/search_form.html' %}
+  </div>
+</div>
+<div class="modal fade" id="deployment-confirmation" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Deployment</h5></div>
+      <div class="modal-body">
+        <div class="p-3 mb-2">
+          <div class="alert alert-danger" role="alert"><i class="fas fa-exclamation-triangle"></i> Dangerous action</div>
+          No syntax check will be performed. Configurations will be deployed without confirmations.<br>
+          Do you want to install the configurations for the selected routers?
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="confirm-deployment">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block javascript %}
+<script>
+  var routerIDs;
+  $('#deploy-on-selected').click(function () {
+    routerIDs = [];
+    $.each($("input[name='pk']:checked"), function () {
+      routerIDs.push(parseInt($(this).val()));
+    });
+    if (routerIDs.length > 0) {
+      $('#deployment-confirmation').modal();
+    }
+  });
+  $('#confirm-deployment').click(function () {
+    var button = $(this);
+    PeeringManager.setWorkingButton(button);
+
+    $.ajax({
+      method: 'post',
+      url: "{% url 'peering-api:router-configure' %}",
+      headers: { 'X-CSRFTOKEN': '{{ csrf_token }}' },
+      data: { 'routers': routerIDs, 'commit': true },
+    }).done(function () {
+      PeeringManager.setSuccessButton(button, 'Deployment scheduled');
+    }).fail(function () {
+      PeeringManager.setFailedButton(button, 'Deployment failed');
+    });
+  });
+  $('#deployment-confirmation').on('hidden.bs.modal', function (e) {
+    PeeringManager.resetConfirmButton($('#confirm-deployment'));
+  });
+</script>
+{% endblock %}

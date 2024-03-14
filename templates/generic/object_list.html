@@ -1,0 +1,63 @@
+{% load helpers %}
+{% if actions %}
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="return_url" value="{% if return_url %}{{ return_url }}{% else %}{{ request.path }}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}{% endif %}" />
+    {% for key, value in extra_context.items %}
+    <input type="hidden" name="{{ key }}" value="{{ value }}" />
+    {% endfor %}
+    {% if table.paginator.num_pages > 1 and bulk_delete_url %}
+    <div id="select_all_box" class="card form-row mb-2 d-none">
+      <div class="card-body">
+        <div class="custom-control custom-checkbox">
+          <input type="checkbox" class="custom-control-input" id="select_all" name="_all" />
+          <label class="custom-control-label" for="select_all">Select <strong>all {{ table.rows|length }} {{ table.data.verbose_name_plural }}</strong> matching query</label>
+          <div class="float-right">
+            {% if bulk_edit_url and 'bulk_edit' in actions %}
+            <button type="submit" name="_edit" formaction="{% url bulk_edit_url %}{% if bulk_querystring %}?{{ bulk_querystring }}{% elif request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-warning btn-sm" disabled="disabled">
+              <i class="fa fa-pencil"></i> Edit All
+            </button>
+            {% endif %}
+            {% if bulk_delete_url and 'bulk_delete' in actions %}
+            <button type="submit" name="_delete" formaction="{% url bulk_delete_url %}{% if bulk_querystring %}?{{ bulk_querystring }}{% elif request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-danger btn-sm" disabled="disabled">
+              <i class="fa fa-trash"></i> Delete All
+            </button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% include 'utils/responsive_table.html' %}
+    <div class="float-left">
+      {% if request.user.is_authenticated and table_modal %}
+      <button type="button" class="btn btn-sm btn-outline-dark" data-toggle="modal" data-target="#{{ table_modal }}">
+        <i class="fas fa-cog"></i> Configure Table
+      </button>
+      {% endif %}
+      {% block extra_buttons %}{% endblock %}
+      {% if bulk_add_url and 'add' in actions %}
+      <button type="submit" name="_add" formaction="{% url bulk_add_url %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-sm btn-primary">
+        <i class="fa fa-plus"></i> Add Selected
+      </button>
+      {% endif %}
+      {% if bulk_edit_url and 'bulk_edit' in actions %}
+      <button type="submit" name="_edit" formaction="{% url bulk_edit_url %}{% if bulk_querystring %}?{{ bulk_querystring }}{% elif request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-sm btn-warning">
+        <i class="fa fa-edit"></i> Edit Selected
+      </button>
+      {% endif %}
+      {% if bulk_delete_url and 'bulk_delete' in actions %}
+      <button type="submit" name="_delete" formaction="{% url bulk_delete_url %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-sm btn-danger">
+        <i class="fa fa-trash"></i> Delete Selected
+      </button>
+      {% endif %}
+    </div>
+  </form>
+{% else %}
+  {% include 'utils/responsive_table.html' %}
+{% endif %}
+{% include 'includes/pagination.html' with paginator=table.paginator page=table.page %}
+<div class="clearfix"></div>
+{% if request.user.is_authenticated and table_modal %}
+{% table_config_form table %}
+{% endif %}

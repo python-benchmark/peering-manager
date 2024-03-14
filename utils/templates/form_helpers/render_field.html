@@ -1,0 +1,58 @@
+{% load form_helpers %}
+
+<div class="form-group form-row{% if field.errors %} invalid{% endif %}">
+  {% if field|widget_type == 'checkboxinput' %}
+  <div class="col-9 offset-3">
+    <div class="custom-control custom-checkbox{% if field.errors %} invalid{% endif %}">
+      {{ field }}
+      <label class="custom-control-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+    </div>
+    {% if field.help_text %}
+    <small class="form-text text-muted">{{ field.help_text|safe }}</small>
+    {% endif %}
+    {% if bulk_nullable %}
+    <label class="checkbox-inline">
+      <input type="checkbox" name="_nullify" value="{{ field.name }}"> Set null
+    </label>
+    {% endif %}
+    {% if field.errors %}
+    <ul>
+      {% for error in field.errors %}
+      <li class="text-danger">{{ error }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% else %}
+  <label class="col-3{% if field.field.required %} required{% endif %}" for="{{ field.id_for_label }}"><strong>{{ field.label }}</strong></label>
+  <div class="col-9">
+    {% if field|widget_type == 'passwordinput' %}
+    <div class="input-group">
+      {{ field }}
+      <div class="input-group-append">
+        <button type="button" class="btn btn-outline-secondary" id="{{ field.id_for_label }}_reveal"><i class="fas fa-eye"></i> Show</button>
+      </div>
+    </div>
+    {% else %}
+    {{ field }}
+    {% if bulk_nullable %}
+    <div class="custom-control custom-checkbox">
+      <input type="checkbox" class="custom-control-input" id="{{ field.name }}_set_null_checkbox" name="_nullify" value="{{ field.name }}">
+      <label class="custom-control-label" for="{{ field.name }}_set_null_checkbox">Set null</label>
+    </div>
+    {% endif %}
+    {% endif %}
+    {% if field.help_text %}
+    <small class="form-text text-muted">{{ field.help_text|safe }}</small>
+    {% endif %}
+    {% if field.errors %}
+    <ul>
+      {% for error in field.errors %}
+      <!-- FORM-ERROR {{ field.name }}: {{ error }} -->
+      <li class="text-danger">{{ error }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

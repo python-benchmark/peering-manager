@@ -1,0 +1,199 @@
+{% extends 'net/connection/_base.html' %}
+{% load helpers %}
+{% block subcontent %}
+<div class="row">
+  <div class="col-md-6">
+    <div class="card mb-2">
+      <div class="card-header">
+        <strong>Details</strong>
+        {% if instance.linked_to_peeringdb %}
+        <span class="float-right" data-toggle="tooltip" data-placement="right" title="Linked to PeeringDB">
+          <i class="fas fa-check-circle text-success"></i>
+        </span>
+        {% endif %}
+      </div>
+      <table class="card-body table table-hover attr-table mb-0">
+        <tr>
+          <td>Status</td>
+          <td>{{ instance|status_as_badge }}</td>
+        </tr>
+        <tr>
+          <td>VLAN</td>
+          <td>{{ instance.vlan|render_none }}</td>
+        </tr>
+        <tr>
+          <td>MAC address</td>
+          <td>
+            {{ instance.mac_address|render_none }}
+            {% if ixapi_network_service_config and instance.mac_address and instance.mac_address != ixapi_mac_address %}
+            <span class="float-right" data-toggle="tooltip" data-placement="top" title="Use this MAC in IX-API">
+              <button type="button" class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#update_ixapi_mac_modal"><i class="fas fa-upload"></i> Set in IX-API</button>
+            </span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td>IPv6 address</td>
+          <td>{{ instance.ipv6_address|render_none }}</td>
+        </tr>
+        <tr>
+          <td>IPv4 address</td>
+          <td>{{ instance.ipv4_address|render_none }}</td>
+        </tr>
+        <tr>
+          <td>IXP</td>
+          <td>{{ instance.internet_exchange_point|as_link|render_none }}</td>
+        </tr>
+        <tr>
+          <td>Router</td>
+          <td>{{ instance.router|as_link|render_none }}</td>
+        </tr>
+        <tr>
+          <td>Interface</td>
+          <td>{{ instance.interface|render_none }}</td>
+        </tr>
+        <tr>
+          <td>Description</td>
+          <td>{{ instance.description|render_none }}</td>
+        </tr>
+      </table>
+    </div>
+    {% if ixapi_network_service_config %}
+    <div class="card mb-2">
+      <div class="card-header">
+        <strong>IX-API</strong>
+        <span class="float-right" data-toggle="tooltip" data-placement="right" title="Found in IX-API">
+          <i class="fas fa-check-circle text-success"></i>
+        </span>
+      </div>
+      <table class="card-body table table-hover attr-table mb-0">
+        <tr>
+          <td>Identifier</td>
+          <td>{{ ixapi_network_service_config.id }}</td>
+        </tr>
+        <tr>
+          <td>State</td>
+          <td>{{ ixapi_network_service_config.state|title }}</td>
+        </tr>
+        {% if ixapi_network_service_config.outer_vlan %}
+        <tr>
+          <td>Outer VLAN</td>
+          <td>{{ ixapi_network_service_config.outer_vlan }}</td>
+        </tr>
+        {% endif %}
+        {% if ixapi_network_service_config.inner_vlan %}
+        <tr>
+          <td>Inner VLAN</td>
+          <td>{{ ixapi_network_service_config.inner_vlan }}</td>
+        </tr>
+        {% endif %}
+        {% for ip in ixapi_network_service_config.ips %}
+        <tr>
+          <td>IPv{{ ip.version }} address</td>
+          <td{% if ip.fqdn %} data-toggle="tooltip" data-placement="top" title="{{ ip.fqdn }}"{% endif %}>{{ ip }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <td>MAC address</td>
+          <td>
+            {{ ixapi_mac_address|render_none }}
+            {% if ixapi_mac_address and instance.mac_address != ixapi_mac_address %}
+            <span class="float-right" data-toggle="tooltip" data-placement="top" title="Set this MAC as the one of the connection">
+              <button type="button" class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#use_ixapi_mac_modal"><i class="fas fa-download"></i> Use this MAC</button>
+            </span>
+            {% endif %}
+          </td>
+        </tr>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header"><strong>Comments</strong></div>
+      <div class="card-body">
+        {% if instance.comments %}
+        {{ instance.comments|markdown }}
+        {% else %}
+        <span class="text-muted">None</span>
+        {% endif %}
+      </div>
+    </div>
+    {% include 'includes/tags_card.html' with tags=instance.tags.all url='net:connection_list' %}
+  </div>
+</div>
+{% if ixapi_network_service_config and instance.mac_address and instance.mac_address != ixapi_mac_address %}
+<div class="modal fade" id="update_ixapi_mac_modal" tabindex="-1" aria-labelledby="update_ixapi_mac_label" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="update_ixapi_mac_label">Update IX-API MAC Address</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        Do you really want to use <code>{{ instance.mac_address }}</code> as MAC address for this IXP connection in IX-API?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="update_ixapi_mac">Update</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% if ixapi_mac_address and instance.mac_address != ixapi_mac_address %}
+<div class="modal fade" id="use_ixapi_mac_modal" tabindex="-1" aria-labelledby="use_ixapi_mac_label" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="use_ixapi_mac_label">Use IX-API MAC Address</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        Do you really want to use <code>{{ ixapi_mac_address }}</code> (which has been found in IX-API) as MAC address for this IXP connection?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="use_ixapi_mac">Update</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+{% block javascript %}
+<script>
+  $(function() {
+    $('[data-toggle="tooltip"]').tooltip();
+  });
+  {% if ixapi_network_service_config and instance.mac_address and instance.mac_address != ixapi_mac_address %}
+  $("#update_ixapi_mac").click(function() {
+    $.ajax({
+      method: "post",
+      url: "{% url 'net-api:connection-update-ixapi-mac' pk=instance.pk %}",
+      headers: { "X-CSRFTOKEN": "{{ csrf_token }}" }
+    }).done(function() {
+      location.reload();
+    });
+  });
+  {% endif %}
+  {% if ixapi_mac_address and instance.mac_address != ixapi_mac_address %}
+  $("#use_ixapi_mac").click(function() {
+    $.ajax({
+      method: "patch",
+      url: "{% url 'net-api:connection-detail' pk=instance.pk %}",
+      headers: { "X-CSRFTOKEN": "{{ csrf_token }}" },
+      data: {
+        "mac_address": "{{ ixapi_mac_address }}"
+      }
+    }).done(function() {
+      location.reload();
+    });
+  });
+  {% endif %}
+</script>
+{% endblock %}
